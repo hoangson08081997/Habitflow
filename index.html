@@ -1151,7 +1151,7 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_QffEUmVA6haZ5yEG1dlcwA_e7kYeoP6';
     const ALLOWED_EMAIL = 'hoangson1231997@gmail.com';
 
-    const supabase = (window.supabase && typeof window.supabase.createClient === 'function')
+    const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function')
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : null;
 
@@ -1313,16 +1313,16 @@
 
         // ================= SUPABASE AUTH & 2-WAY CLOUD SYNC =================
         async initSupabaseAuth() {
-          if (!supabase) {
+          if (!supabaseClient) {
             this.authError = 'Không thể khởi tạo kết nối Supabase.';
             return;
           }
           try {
-            const { data } = await supabase.auth.getSession();
+            const { data } = await supabaseClient.auth.getSession();
             await this.handleAuthSession(data?.session ?? null);
           } catch {}
 
-          supabase.auth.onAuthStateChange((_event, newSession) => {
+          supabaseClient.auth.onAuthStateChange((_event, newSession) => {
             this.handleAuthSession(newSession);
           });
         },
@@ -1335,7 +1335,7 @@
           }
           const email = (newSession.user.email ?? '').trim().toLowerCase();
           if (email !== ALLOWED_EMAIL.toLowerCase()) {
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             this.session = null;
             this.syncedUserId = null;
             this.authError = 'Tài khoản Google này không có quyền truy cập ứng dụng.';
@@ -1351,11 +1351,11 @@
         },
 
         async signInWithGoogle() {
-          if (!supabase) return;
+          if (!supabaseClient) return;
           this.authLoading = true;
           this.authError = '';
           try {
-            const { error } = await supabase.auth.signInWithOAuth({
+            const { error } = await supabaseClient.auth.signInWithOAuth({
               provider: 'google',
               options: { redirectTo: window.location.origin + window.location.pathname }
             });
@@ -1370,24 +1370,24 @@
         },
 
         async signOutGoogle() {
-          if (!supabase) return;
+          if (!supabaseClient) return;
           if (this.cloudSyncTimer) {
             clearTimeout(this.cloudSyncTimer);
             this.cloudSyncTimer = null;
             await this.pushCloudData(true);
           }
-          await supabase.auth.signOut();
+          await supabaseClient.auth.signOut();
           this.session = null;
           this.syncedUserId = null;
           this.showToast('Đã đăng xuất khỏi tài khoản Google.');
         },
 
         async initialCloudSync() {
-          if (!supabase || !this.session?.user?.id) return;
+          if (!supabaseClient || !this.session?.user?.id) return;
           this.syncStatus = 'saving';
           const userId = this.session.user.id;
           try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
               .from('habitflow_data')
               .select('*')
               .eq('user_id', userId)
@@ -1438,7 +1438,7 @@
         },
 
         scheduleCloudSync() {
-          if (!supabase || !this.session?.user?.id) return;
+          if (!supabaseClient || !this.session?.user?.id) return;
           this.syncStatus = 'saving';
           if (this.cloudSyncTimer) clearTimeout(this.cloudSyncTimer);
           this.cloudSyncTimer = setTimeout(() => {
@@ -1448,7 +1448,7 @@
         },
 
         async pushCloudData(isManual = false) {
-          if (!supabase || !this.session?.user?.id) return;
+          if (!supabaseClient || !this.session?.user?.id) return;
           this.syncStatus = 'saving';
           const userId = this.session.user.id;
           const nowIso = new Date().toISOString();
@@ -1481,7 +1481,7 @@
             let modesToTry = [this.cloudColumnMode, 'payload', 'data', 'columns'].filter((v, i, a) => a.indexOf(v) === i);
             let lastErr = null;
             for (const mode of modesToTry) {
-              const { error } = await supabase
+              const { error } = await supabaseClient
                 .from('habitflow_data')
                 .upsert(buildRow(mode), { onConflict: 'user_id' });
               if (!error) {
