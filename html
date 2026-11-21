@@ -1,0 +1,2024 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="HabitFlow" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%234f46e5'/%3E%3Cstop offset='100%25' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='180' height='180' rx='42' fill='url(%23g)'/%3E%3Ctext x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-family='-apple-system,BlinkMacSystemFont,sans-serif' font-weight='800' font-size='76' letter-spacing='-3'%3EHF%3C/text%3E%3C/svg%3E" />
+  <title>HabitFlow - Theo dõi thói quen hằng ngày</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    * { -webkit-tap-highlight-color: transparent; }
+    button:focus { outline: none !important; }
+    .ios-header {
+      padding-top: max(1.25rem, env(safe-area-inset-top));
+    }
+    .ios-bottom-nav {
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white overflow-hidden">
+  <div x-data="habitFlowApp()" x-init="init()" :class="darkMode ? 'dark' : ''" class="w-full h-[100dvh] flex items-center justify-center bg-slate-200 dark:bg-slate-950">
+    <!-- Khung iPhone 14 Plus 428x926px trên Desktop & 100dvh trên Mobile -->
+    <div class="w-full h-[100dvh] sm:w-[428px] sm:h-[926px] sm:max-h-[96dvh] sm:rounded-[44px] sm:shadow-2xl sm:border-[6px] sm:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col overflow-hidden relative transition-colors duration-200">
+
+      <!-- FLOATING TOAST + NÚT HOÀN TÁC Ở VÙNG NGÓN CÁI (bottom-24 left-3.5 right-3.5) -->
+      <div x-show="toast.visible" x-cloak
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 translate-y-3"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100 translate-y-0"
+           x-transition:leave-end="opacity-0 translate-y-3"
+           class="absolute bottom-24 left-3.5 right-3.5 z-50 flex justify-center">
+        <div :class="toast.tone === 'error'
+              ? 'bg-rose-600/95 text-white border-rose-500'
+              : (toast.tone === 'success'
+                ? 'bg-slate-900/95 dark:bg-slate-100/95 text-white dark:text-slate-900 border-emerald-500/40'
+                : 'bg-slate-900/95 dark:bg-slate-100/95 text-white dark:text-slate-900 border-slate-700/50 dark:border-slate-300')"
+             class="w-full max-w-[392px] px-3.5 py-2.5 rounded-2xl shadow-xl backdrop-blur-md flex items-center justify-between gap-2.5 border">
+          <span class="text-xs font-bold leading-snug flex-1" x-text="toast.message"></span>
+          <button x-show="toast.undo !== null"
+                  @click="undoLastAction()"
+                  class="focus:outline-none shrink-0 px-2.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-[11px] font-extrabold active:scale-95 transition">
+            ↺ Hoàn tác
+          </button>
+        </div>
+      </div>
+
+      <!-- HEADER CỐ ĐỊNH PHÍA TRÊN -->
+      <header class="ios-header shrink-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 pb-3 z-20">
+        <div class="flex items-center justify-between gap-2 mb-2.5">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-sm shadow-indigo-500/30 shrink-0">HF</div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5">
+                <h1 class="text-base font-bold tracking-tight truncate">HabitFlow</h1>
+                <span class="text-xs font-semibold text-amber-500 dark:text-amber-400 tabular-nums shrink-0" x-text="'🔥 ' + getAppStreak() + ' ngày'"></span>
+              </div>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate" x-text="formatSelectedDateLabel()"></p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button x-show="!isViewingCurrentWeek() || selectedDate !== todayKey"
+                    @click="goToToday()"
+                    class="focus:outline-none px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 active:scale-95 transition">
+              Hôm nay
+            </button>
+            <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5">
+              <button @click="changeWeek(-1)" aria-label="Tuần trước" class="focus:outline-none w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 active:scale-95">
+                &lt;
+              </button>
+              <button @click="changeWeek(1)" aria-label="Tuần sau" class="focus:outline-none w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 active:scale-95">
+                &gt;
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- THANH LỊCH TUẦN 7 NGÀY (T2 -> CN) -->
+        <div class="grid grid-cols-7 gap-1.5">
+          <template x-for="day in getWeekDays()" :key="day.dateKey">
+            <button @click="selectDate(day.dateKey)"
+                    :class="selectedDate === day.dateKey
+                      ? (day.isRest ? 'bg-sky-600 text-white shadow-md shadow-sky-600/25 ring-2 ring-sky-400/40' : 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-2 ring-indigo-400/40')
+                      : (day.isRest ? 'bg-sky-500/15 dark:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30' : (day.isToday ? 'bg-indigo-500/10 dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30' : 'bg-slate-100/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300'))"
+                    class="focus:outline-none flex flex-col items-center justify-center py-1.5 rounded-2xl transition active:scale-95 min-h-[54px]">
+              <span class="text-[10px] font-semibold opacity-80" x-text="day.label"></span>
+              <span class="text-xs font-bold tabular-nums mt-0.5" x-text="day.dayNum"></span>
+              <div class="flex items-center gap-0.5 mt-1">
+                <span class="w-1.5 h-1.5 rounded-full"
+                      :class="day.isRest
+                        ? (selectedDate === day.dateKey ? 'bg-sky-200' : 'bg-sky-400')
+                        : (selectedDate === day.dateKey
+                          ? (day.pct >= 100 ? 'bg-emerald-300' : (day.pct > 0 ? 'bg-amber-300' : 'bg-white/40'))
+                          : (day.pct >= 100 ? 'bg-emerald-500' : (day.pct >= 80 ? 'bg-indigo-500' : (day.pct > 0 ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'))))"></span>
+                <span x-show="day.hasNoteOrMood" class="w-1 h-1 rounded-full" :class="selectedDate === day.dateKey ? 'bg-amber-200' : 'bg-amber-400'"></span>
+              </div>
+            </button>
+          </template>
+        </div>
+      </header>
+
+      <!-- VÙNG NỘI DUNG CUỘN GIỮA (FLEX-1 OVERFLOW-Y-AUTO) -->
+      <main x-ref="mainScroll" class="flex-1 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar">
+
+        <!-- TAB 1: THÓI QUEN -->
+        <div x-show="activeTab === 'habits'" class="space-y-4 pb-4">
+          <!-- Thanh nhãn nhỏ khi chọn xem một ngày tương lai -->
+          <div x-show="selectedDate > todayKey" x-cloak
+               class="rounded-2xl px-3.5 py-2.5 bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-bold flex items-center justify-between gap-2">
+            <span>📅 Ngày sắp tới — Xem trước lịch trình</span>
+            <button @click="goToToday()" class="focus:outline-none underline font-extrabold shrink-0">Về hôm nay</button>
+          </div>
+
+          <!-- Thẻ nhắc nhỏ gọn "Cứu chuỗi hôm qua" -->
+          <div x-show="selectedDate === todayKey && getYesterdayRescueInfo().shouldPrompt" x-cloak
+               class="rounded-2xl p-3 bg-amber-500/15 border border-amber-500/30 flex items-center justify-between gap-2.5">
+            <p class="text-xs text-slate-700 dark:text-slate-200 leading-snug flex-1">
+              ⚠️ Hôm qua mới đạt <strong class="tabular-nums text-amber-600 dark:text-amber-400" x-text="getYesterdayRescueInfo().yesterdayPct + '%'"></strong> — Bạn quên chấm hay muốn bật Ngày nghỉ để cứu chuỗi?
+            </p>
+            <button @click="jumpToDate(getYesterdayRescueInfo().yesterdayKey)"
+                    class="focus:outline-none shrink-0 px-3 py-2 rounded-xl bg-amber-500 text-white text-xs font-extrabold active:scale-95 transition">
+              Xem hôm qua
+            </button>
+          </div>
+
+          <!-- Thẻ tổng quan ngày + Nút "⛱️ Nghỉ hôm nay" + Dòng nhắc nhở thông minh động -->
+          <div :class="isRestDay(selectedDate) ? 'border-sky-500/40 dark:border-sky-500/35' : 'border-slate-200/80 dark:border-slate-700/70'"
+               class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border shadow-sm flex items-center justify-between gap-3.5">
+            <div class="space-y-1.5 flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Tiến độ ngày đã chọn</span>
+                <button @click="toggleRestDay(selectedDate)"
+                        :class="isRestDay(selectedDate) ? 'bg-sky-500 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300'"
+                        class="focus:outline-none px-2.5 py-1 rounded-xl text-[11px] font-bold transition active:scale-95"
+                        x-text="isRestDay(selectedDate) ? 'Đang nghỉ ⛱️' : '⛱️ Nghỉ hôm nay'"></button>
+              </div>
+              <div class="text-xl font-extrabold tracking-tight tabular-nums">
+                <span x-text="getDaySummary(selectedDate).completedCount"></span>
+                <span class="text-slate-400 dark:text-slate-500 font-semibold">/</span>
+                <span x-text="getDaySummary(selectedDate).scheduledCount"></span>
+                <span class="text-sm font-semibold text-slate-500 dark:text-slate-400 ml-1">mục tiêu</span>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium"
+                 x-text="getSmartCoachMessage(selectedDate)"></p>
+            </div>
+
+            <!-- Vòng tròn SVG % tiến độ -->
+            <div class="relative w-16 h-16 shrink-0 flex items-center justify-center">
+              <svg class="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="6" fill="transparent" class="text-slate-200 dark:text-slate-700" />
+                <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="6" fill="transparent"
+                        stroke-linecap="round"
+                        :stroke-dasharray="2 * Math.PI * 26"
+                        :stroke-dashoffset="(2 * Math.PI * 26) * (1 - getDaySummary(selectedDate).percentage / 100)"
+                        :class="isRestDay(selectedDate) ? 'text-sky-500' : (getDaySummary(selectedDate).percentage >= 100 ? 'text-emerald-500' : (getDaySummary(selectedDate).percentage >= 80 ? 'text-indigo-500' : 'text-amber-500'))" />
+              </svg>
+              <span class="absolute text-xs font-extrabold tabular-nums"
+                    x-text="isRestDay(selectedDate) ? '⛱️' : (getDaySummary(selectedDate).percentage + '%')"></span>
+            </div>
+          </div>
+
+          <!-- Thanh lọc nhanh: Ẩn việc đã xong & Sắp xếp -->
+          <div class="flex items-center justify-between gap-2 px-1">
+            <button @click="hideCompleted = !hideCompleted"
+                    class="focus:outline-none inline-flex items-center gap-2 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 active:scale-95 transition">
+              <span :class="hideCompleted ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'"
+                    class="w-9 h-5 rounded-full p-0.5 transition-colors flex items-center">
+                <span :class="hideCompleted ? 'translate-x-4' : 'translate-x-0'"
+                      class="w-4 h-4 rounded-full bg-white shadow transform transition-transform"></span>
+              </span>
+              <span>Ẩn việc đã xong</span>
+            </button>
+
+            <button @click="reorderMode = !reorderMode"
+                    :class="reorderMode ? 'bg-indigo-600 text-white' : 'bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                    class="focus:outline-none h-8 px-2.5 rounded-xl text-xs font-bold transition active:scale-95">
+              <span x-text="reorderMode ? '✓ Xong' : '⇅ Sắp xếp'"></span>
+            </button>
+          </div>
+
+          <!-- Danh sách thói quen chia theo 3 khung giờ (Bấm tiêu đề để thu gọn/mở rộng) -->
+          <template x-for="group in timeGroups" :key="group.key">
+            <section x-show="getHabitsByGroup(group.key, false).length > 0" class="space-y-2.5">
+              <button @click="toggleGroupCollapse(group.key)"
+                      class="focus:outline-none w-full flex items-center justify-between gap-2 px-1 py-1 text-left">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-xs text-slate-400 transition-transform duration-200 inline-block"
+                        :class="collapsedGroups[group.key] ? '-rotate-90' : 'rotate-0'">▾</span>
+                  <h2 class="text-xs font-extrabold tracking-wider uppercase text-slate-600 dark:text-slate-300 truncate" x-text="group.label"></h2>
+                  <span x-show="selectedDate === todayKey && currentTimeOfDay === group.key"
+                        class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Đang diễn ra</span>
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                  <span x-show="isGroupCompleted(group.key)"
+                        class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
+                        x-text="collapsedGroups[group.key] ? 'Đã xong ✓' : 'Xong 100% · Thu gọn'"></span>
+                  <span class="text-xs text-slate-400 dark:text-slate-500 tabular-nums font-bold"
+                        x-text="getGroupCompletedCount(group.key) + '/' + getHabitsByGroup(group.key, false).length"></span>
+                </div>
+              </button>
+
+              <div x-show="!collapsedGroups[group.key]" class="space-y-2.5">
+                <div x-show="getHabitsByGroup(group.key, true).length === 0"
+                     class="rounded-2xl px-4 py-3 bg-slate-100/80 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 text-center">
+                  Đã hoàn thành toàn bộ mục trong khung giờ này.
+                </div>
+
+                <template x-for="(habit, idx) in getHabitsByGroup(group.key, true)" :key="habit.id">
+                  <div :class="isHabitCompleted(habit, selectedDate) ? 'border-emerald-500/30 dark:border-emerald-500/25' : 'border-slate-200/80 dark:border-slate-700/70'"
+                       class="rounded-3xl p-3.5 bg-white dark:bg-slate-800/90 border shadow-sm transition">
+                    <div class="flex items-center justify-between gap-2">
+                      <!-- Icon & Thông tin thói quen (Bấm vào để sửa) -->
+                      <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                        <button @click="openEditModal(habit)"
+                                class="focus:outline-none w-11 h-11 rounded-2xl flex items-center justify-center text-2xl shrink-0 active:scale-95 transition"
+                                :class="getColorClasses(habit.color).bgSoft">
+                          <span x-text="habit.icon"></span>
+                        </button>
+
+                        <div class="min-w-0 flex-1">
+                          <div class="flex items-center gap-1.5">
+                            <button @click="openEditModal(habit)"
+                                    class="focus:outline-none font-bold text-sm truncate text-left"
+                                    :class="isHabitCompleted(habit, selectedDate) ? 'line-through text-slate-400 dark:text-slate-500' : ''"
+                                    x-text="habit.name"></button>
+                            <span class="text-xs font-bold text-amber-500 dark:text-amber-400 shrink-0 tabular-nums"
+                                  x-text="'🔥 ' + getHabitStreak(habit)"></span>
+                          </div>
+
+                          <!-- Hiển thị tiến độ gọn (chỉ gạch chân chấm mờ + biểu tượng bút chì nhỏ ✎) -->
+                          <div class="mt-0.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                            <template x-if="habit.mode === 'check'">
+                              <button @click="openEditModal(habit)" class="focus:outline-none"
+                                      x-text="isHabitCompleted(habit, selectedDate) ? 'Đã hoàn thành ✓' : 'Đánh dấu 1 lần/ngày'"></button>
+                            </template>
+                            <template x-if="habit.mode === 'counter'">
+                              <button @click="openQuickInput(habit)"
+                                      class="focus:outline-none inline-flex items-center gap-1 font-bold underline decoration-dotted underline-offset-4 cursor-pointer"
+                                      :class="isHabitCompleted(habit, selectedDate) ? 'text-emerald-600 dark:text-emerald-400' : getColorClasses(habit.color).text">
+                                <span x-text="getHabitVal(habit, selectedDate) + ' / ' + habit.target + ' ' + habit.unit"></span>
+                                <span class="text-[11px] no-underline opacity-70">✎</span>
+                              </button>
+                            </template>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Cụm nút bên phải (nút phụ ▶ và - thu gọn w-9 h-11 để tên thói quen rộng rãi) -->
+                      <div class="flex items-center gap-1 shrink-0">
+                        <template x-if="reorderMode">
+                          <div class="flex items-center gap-1">
+                            <button @click="moveHabitInGroup(habit.id, -1)"
+                                    :disabled="idx === 0"
+                                    class="focus:outline-none w-10 h-11 rounded-2xl bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 font-bold text-sm flex items-center justify-center disabled:opacity-30 active:scale-90">
+                              ↑
+                            </button>
+                            <button @click="moveHabitInGroup(habit.id, 1)"
+                                    :disabled="idx === getHabitsByGroup(group.key, true).length - 1"
+                                    class="focus:outline-none w-10 h-11 rounded-2xl bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 font-bold text-sm flex items-center justify-center disabled:opacity-30 active:scale-90">
+                              ↓
+                            </button>
+                          </div>
+                        </template>
+
+                        <template x-if="!reorderMode && habit.mode === 'check'">
+                          <button @click="toggleCheckHabit(habit)"
+                                  :class="isHabitCompleted(habit, selectedDate)
+                                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-slate-100 dark:bg-slate-700/80 text-slate-500 dark:text-slate-300'"
+                                  class="focus:outline-none w-12 h-11 rounded-2xl flex items-center justify-center font-bold text-lg transition active:scale-95">
+                            <span x-text="isHabitCompleted(habit, selectedDate) ? '✓' : '○'"></span>
+                          </button>
+                        </template>
+
+                        <template x-if="!reorderMode && habit.mode === 'counter'">
+                          <div class="flex items-center gap-1">
+                            <!-- Nút ▶ Mini Timer (w-9 h-11) -->
+                            <button x-show="isMinuteHabit(habit)"
+                                    @click="toggleMiniTimer(habit)"
+                                    :class="activeTimer && activeTimer.habitId === habit.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700/80 text-indigo-600 dark:text-indigo-400'"
+                                    class="focus:outline-none w-9 h-11 rounded-xl font-bold text-xs flex items-center justify-center active:scale-95 transition">
+                              ▶
+                            </button>
+
+                            <button x-show="getHabitVal(habit, selectedDate) > 0"
+                                    @click="incrementHabit(habit, -habit.step)"
+                                    class="focus:outline-none w-9 h-11 rounded-xl bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 font-bold text-base flex items-center justify-center active:scale-95 transition">
+                              -
+                            </button>
+
+                            <!-- Nút +bước dịu màu & hiện ✓ xanh lá khi đạt 100%, vẫn cho bấm cộng thêm -->
+                            <button @click="incrementHabit(habit, habit.step)"
+                                    :class="isHabitCompleted(habit, selectedDate)
+                                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                                      : getColorClasses(habit.color).btn + ' shadow-sm'"
+                                    class="focus:outline-none min-w-[50px] h-11 px-2.5 rounded-2xl font-extrabold text-xs tabular-nums flex items-center justify-center gap-0.5 active:scale-95 transition">
+                              <span x-show="isHabitCompleted(habit, selectedDate)">✓</span>
+                              <span x-text="'+' + habit.step"></span>
+                            </button>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+
+                    <!-- MINI TIMER ĐẾM NGƯỢC (Có nút "✓ Chốt (+X phút)" khi đã chạy >= 1 giây) -->
+                    <div x-show="activeTimer && activeTimer.habitId === habit.id" x-cloak
+                         class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 space-y-2.5">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-lg font-extrabold font-mono tabular-nums text-indigo-600 dark:text-indigo-400"
+                              x-text="'⏱ ' + formatTimerMMSS(activeTimer ? activeTimer.remainingSeconds : 0)"></span>
+
+                        <div x-show="activeTimer && !activeTimer.isRunning" class="flex items-center gap-1">
+                          <button @click="selectTimerMinutes(habit.step)"
+                                  :class="activeTimer && activeTimer.durationMinutes === habit.step ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'"
+                                  class="focus:outline-none px-2 py-1 rounded-lg text-[11px] font-bold tabular-nums"
+                                  x-text="habit.step + 'p'"></button>
+                          <button x-show="getRemainingMins(habit) > 0 && getRemainingMins(habit) !== habit.step"
+                                  @click="selectTimerMinutes(getRemainingMins(habit))"
+                                  :class="activeTimer && activeTimer.durationMinutes === getRemainingMins(habit) ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'"
+                                  class="focus:outline-none px-2 py-1 rounded-lg text-[11px] font-bold tabular-nums"
+                                  x-text="'Thiếu ' + getRemainingMins(habit) + 'p'"></button>
+                          <button x-show="habit.target !== habit.step && habit.target !== getRemainingMins(habit)"
+                                  @click="selectTimerMinutes(habit.target)"
+                                  :class="activeTimer && activeTimer.durationMinutes === habit.target ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'"
+                                  class="focus:outline-none px-2 py-1 rounded-lg text-[11px] font-bold tabular-nums"
+                                  x-text="habit.target + 'p'"></button>
+                        </div>
+                      </div>
+
+                      <div class="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                        <div class="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                             :style="'width: ' + getTimerProgressPct() + '%'"></div>
+                      </div>
+
+                      <div class="flex items-center gap-1.5">
+                        <button @click="startPauseTimer()"
+                                :class="activeTimer && activeTimer.isRunning ? 'bg-amber-500 text-white' : 'bg-indigo-600 text-white'"
+                                class="focus:outline-none flex-1 h-10 rounded-xl font-bold text-xs active:scale-95 transition"
+                                x-text="activeTimer && activeTimer.isRunning ? '⏸ Tạm dừng' : (getTimerElapsedSeconds() > 0 ? '▶ Tiếp tục' : ('▶ Bắt đầu (' + (activeTimer ? activeTimer.durationMinutes : 0) + 'p)'))"></button>
+
+                        <button x-show="getTimerElapsedSeconds() >= 1"
+                                @click="commitPartialTimer(habit)"
+                                class="focus:outline-none h-10 px-3 rounded-xl bg-emerald-600 text-white font-extrabold text-xs tabular-nums active:scale-95 transition whitespace-nowrap"
+                                x-text="'✓ Chốt (+' + getEarlyCommitMinutes() + ' phút)'"></button>
+
+                        <button @click="resetTimer()"
+                                class="focus:outline-none w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-xs font-bold active:scale-95">↺</button>
+                        <button @click="closeMiniTimer()"
+                                class="focus:outline-none w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-xs font-bold active:scale-95">✕</button>
+                      </div>
+                    </div>
+
+                    <!-- Ô nhập nhanh số thực tế kèm nút "Đủ 100%" ngay cạnh nút "Lưu" -->
+                    <div x-show="quickInputHabitId === habit.id" x-cloak class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center gap-1.5">
+                      <input type="number" min="0" x-model.number="quickInputValue"
+                             @keydown.enter="saveQuickInput(habit)"
+                             class="flex-1 min-w-0 h-10 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                             placeholder="Nhập số..." />
+                      <button @click="quickInputValue = habit.target; saveQuickInput(habit)"
+                              class="focus:outline-none h-10 px-2.5 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-extrabold active:scale-95 whitespace-nowrap">
+                        Đủ 100%
+                      </button>
+                      <button @click="saveQuickInput(habit)" class="focus:outline-none h-10 px-3 rounded-xl bg-indigo-600 text-white text-xs font-bold">Lưu</button>
+                      <button @click="quickInputHabitId = null" class="focus:outline-none h-10 px-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-semibold">✕</button>
+                    </div>
+
+                    <!-- Thanh progress bar bên dưới cho chế độ Đếm -->
+                    <template x-if="habit.mode === 'counter'">
+                      <div class="mt-3 w-full h-2 rounded-full bg-slate-100 dark:bg-slate-700/70 overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-300"
+                             :class="isHabitCompleted(habit, selectedDate) ? 'bg-emerald-500' : getColorClasses(habit.color).bar"
+                             :style="'width: ' + Math.min(100, Math.round((getHabitVal(habit, selectedDate) / habit.target) * 100)) + '%'"></div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </section>
+          </template>
+
+          <!-- Bộ chọn 5 Cảm xúc (Daily Mood) + Ghi chú nhật ký ngắn cho từng ngày -->
+          <section class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">📝 Nhật ký ngắn trong ngày</h3>
+              <span class="text-[11px] text-slate-400" x-text="((notes[selectedDate] && notes[selectedDate].trim()) || moods[selectedDate]) ? 'Đã lưu tự động' : 'Tùy chọn'"></span>
+            </div>
+
+            <!-- Hàng 5 nút chọn cảm xúc -->
+            <div class="grid grid-cols-5 gap-1.5">
+              <template x-for="m in moodOptions" :key="m.emoji">
+                <button type="button" @click="selectMood(m.emoji)"
+                        :class="moods[selectedDate] === m.emoji
+                          ? 'bg-indigo-600/15 dark:bg-indigo-500/25 ring-2 ring-indigo-500 text-indigo-600 dark:text-indigo-300 font-bold'
+                          : 'bg-slate-100/90 dark:bg-slate-900/70 text-slate-500 dark:text-slate-400'"
+                        class="focus:outline-none py-2 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition active:scale-95">
+                  <span class="text-lg leading-none" x-text="m.emoji"></span>
+                  <span class="text-[10px]" x-text="m.label"></span>
+                </button>
+              </template>
+            </div>
+
+            <textarea rows="2"
+                      :value="notes[selectedDate] || ''"
+                      @input="updateDailyNote($event.target.value)"
+                      placeholder="Ghi lại cảm nhận, động lực hoặc bài học nhỏ hôm nay..."
+                      class="w-full p-3 rounded-2xl bg-slate-100/90 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-700/70 text-xs leading-relaxed text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+          </section>
+        </div>
+
+        <!-- TAB 2: THỐNG KÊ -->
+        <div x-show="activeTab === 'stats'" x-cloak class="space-y-4 pb-4">
+          <!-- 2 thẻ chỉ số trên cùng (Kèm Kỷ lục: X ngày) -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm">
+              <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Chuỗi hiện tại (≥80%)</div>
+              <div class="mt-1.5 flex items-baseline gap-1.5">
+                <span class="text-2xl font-extrabold tabular-nums text-amber-500" x-text="getAppStreak()"></span>
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">ngày</span>
+              </div>
+              <div class="mt-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 tabular-nums"
+                   x-text="'Kỷ lục: ' + getBestAppStreak() + ' ngày'"></div>
+            </div>
+            <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm">
+              <div class="text-xs font-medium text-slate-500 dark:text-slate-400">TB hoàn thành 7 ngày</div>
+              <div class="mt-1.5 flex items-baseline gap-1.5">
+                <span class="text-2xl font-extrabold tabular-nums text-indigo-500" x-text="getWeeklyAverage() + '%'"></span>
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">tuần này</span>
+              </div>
+              <div class="mt-1 text-[11px] font-medium text-slate-400 dark:text-slate-500">Chỉ tính ngày đã qua</div>
+            </div>
+          </div>
+
+          <!-- Thẻ Phân tích thông minh (7 ngày trong tuần đang chọn) -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-2.5">
+            <h3 class="text-sm font-extrabold">✨ Phân tích thông minh (Tuần này)</h3>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center justify-between gap-2 py-1 border-b border-slate-100 dark:border-slate-700/60">
+                <span class="text-slate-500 dark:text-slate-400 font-medium">🏆 Làm đều nhất</span>
+                <span class="font-bold text-emerald-600 dark:text-emerald-400 truncate tabular-nums" x-text="getWeeklyInsights().mostConsistent"></span>
+              </div>
+              <div class="flex items-center justify-between gap-2 py-1 border-b border-slate-100 dark:border-slate-700/60">
+                <span class="text-slate-500 dark:text-slate-400 font-medium">⚠️ Hay bỏ quên nhất</span>
+                <span class="font-bold text-rose-500 dark:text-rose-400 truncate tabular-nums" x-text="getWeeklyInsights().mostMissed"></span>
+              </div>
+              <div class="flex items-center justify-between gap-2 pt-1">
+                <span class="text-slate-500 dark:text-slate-400 font-medium">⚡ Ngày năng suất nhất</span>
+                <span class="font-bold text-indigo-600 dark:text-indigo-400 truncate tabular-nums" x-text="getWeeklyInsights().mostProductiveDay"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thẻ "🏅 Tích lũy tuần này" -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-extrabold">🏅 Tích lũy tuần này</h3>
+              <span class="text-[11px] text-slate-400">Tổng khối lượng đã làm</span>
+            </div>
+            <p x-show="getWeeklyAccumulations().length === 0" class="text-xs text-slate-500 dark:text-slate-400">
+              Chưa có dữ liệu tích lũy trong tuần này.
+            </p>
+            <div x-show="getWeeklyAccumulations().length > 0" class="grid grid-cols-2 gap-2">
+              <template x-for="acc in getWeeklyAccumulations()" :key="'acc-' + acc.id">
+                <div class="p-2.5 rounded-2xl bg-slate-100/80 dark:bg-slate-900/60 flex items-center gap-2.5">
+                  <span class="text-xl shrink-0" x-text="acc.icon"></span>
+                  <div class="min-w-0">
+                    <div class="text-xs font-extrabold tabular-nums truncate" x-text="acc.formattedTotal + ' ' + acc.unit"></div>
+                    <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate" x-text="acc.name"></div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Biểu đồ cột 7 ngày trong tuần đang chọn -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold">Biểu đồ 7 ngày trong tuần</h3>
+              <span class="text-xs text-slate-500 dark:text-slate-400 tabular-nums">Mục tiêu chuỗi: 80%</span>
+            </div>
+            <div class="grid grid-cols-7 gap-2 items-end h-36 pt-4 px-1">
+              <template x-for="day in getWeekDays()" :key="'bar-' + day.dateKey">
+                <button @click="selectDate(day.dateKey); switchTab('habits')" class="focus:outline-none flex flex-col items-center h-full justify-end gap-1.5">
+                  <span class="text-[10px] font-bold tabular-nums text-slate-500 dark:text-slate-400"
+                        x-text="day.isRest ? '⛱️' : (day.dateKey > todayKey ? '—' : (day.pct + '%'))"></span>
+                  <div class="w-full h-24 bg-slate-100 dark:bg-slate-700/60 rounded-xl overflow-hidden flex items-end p-0.5">
+                    <div class="w-full rounded-lg transition-all duration-300"
+                         :class="day.isRest ? 'bg-sky-400' : (day.pct >= 100 ? 'bg-emerald-500' : (day.pct >= 80 ? 'bg-indigo-500' : (day.pct > 0 ? 'bg-amber-500' : 'bg-transparent')))"
+                         :style="'height: ' + (day.isRest ? 100 : Math.max(day.pct > 0 ? 10 : 0, day.pct)) + '%'"></div>
+                  </div>
+                  <span class="text-[11px] font-semibold" :class="day.isToday ? 'text-indigo-500 font-bold' : 'text-slate-500'" x-text="day.label"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Bản đồ nhiệt 30 ngày gần nhất -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold">Bản đồ nhiệt 30 ngày gần nhất</h3>
+              <span class="text-xs text-slate-500 dark:text-slate-400">⛱️ Nghỉ · Đậm theo %</span>
+            </div>
+            <div class="grid grid-cols-10 gap-1.5">
+              <template x-for="cell in getHeatmap30Days()" :key="cell.dateKey">
+                <button @click="jumpToDate(cell.dateKey)"
+                        :title="cell.dateKey + ': ' + (cell.isRest ? 'Ngày nghỉ ⛱️' : (cell.pct + '%'))"
+                        :class="cell.isRest
+                          ? 'bg-sky-500/30 text-sky-700 dark:text-sky-200'
+                          : (cell.pct >= 100 ? 'bg-emerald-500 text-white' : (cell.pct >= 75 ? 'bg-emerald-500/70 text-white' : (cell.pct >= 40 ? 'bg-emerald-500/40 text-slate-900 dark:text-white' : (cell.pct > 0 ? 'bg-emerald-500/20 text-slate-700 dark:text-slate-300' : 'bg-slate-100 dark:bg-slate-700/60 text-slate-400'))))"
+                        class="focus:outline-none aspect-square rounded-lg flex items-center justify-center text-[10px] font-bold tabular-nums transition active:scale-90">
+                  <span x-text="cell.dayNum"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Bảng thống kê chi tiết từng thói quen trong 7 ngày qua -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold">Chi tiết thói quen (Tuần này)</h3>
+              <span class="text-[11px] text-slate-400">Hoàn thành / Ngày đã qua</span>
+            </div>
+            <div class="space-y-3">
+              <template x-for="item in getHabitWeeklyBreakdown()" :key="item.id">
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span class="text-base" x-text="item.icon"></span>
+                      <span class="font-bold truncate" x-text="item.name"></span>
+                    </div>
+                    <div class="font-bold tabular-nums text-slate-600 dark:text-slate-300 shrink-0">
+                      <span x-text="item.completedDays + '/' + item.scheduledDays + ' ngày'"></span>
+                      <span class="ml-1.5 text-indigo-500" x-text="'(' + item.rate + '%)'"></span>
+                    </div>
+                  </div>
+                  <div class="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-700/70 overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-300"
+                         :class="getColorClasses(item.color).bar"
+                         :style="'width: ' + item.rate + '%'"></div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Thẻ "Nhật ký & Cảm xúc gần đây" (5 ngày gần nhất) -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold">📝 Nhật ký & Cảm xúc gần đây</h3>
+              <span class="text-[11px] text-slate-400">5 ngày gần nhất</span>
+            </div>
+            <p x-show="getRecentMoodsAndNotes().length === 0" class="text-xs text-slate-500 dark:text-slate-400">
+              Chưa có ghi chú hay cảm xúc nào được lưu.
+            </p>
+            <div x-show="getRecentMoodsAndNotes().length > 0" class="space-y-2">
+              <template x-for="entry in getRecentMoodsAndNotes()" :key="'jn-' + entry.dateKey">
+                <button @click="jumpToDate(entry.dateKey)"
+                        class="focus:outline-none w-full p-2.5 rounded-2xl bg-slate-100/80 dark:bg-slate-900/60 text-left flex items-start justify-between gap-2.5 active:scale-98 transition">
+                  <div class="flex items-start gap-2 min-w-0 flex-1">
+                    <span class="text-lg leading-none shrink-0 mt-0.5" x-text="entry.mood || '📝'"></span>
+                    <div class="min-w-0 flex-1">
+                      <div class="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 tabular-nums" x-text="entry.label"></div>
+                      <p class="text-xs text-slate-600 dark:text-slate-300 truncate mt-0.5" x-text="entry.note || 'Đã ghi nhận cảm xúc trong ngày'"></p>
+                    </div>
+                  </div>
+                  <span class="text-[10px] font-bold text-slate-400 shrink-0 mt-1">Xem →</span>
+                </button>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: CÀI ĐẶT -->
+        <div x-show="activeTab === 'settings'" x-cloak class="space-y-4 pb-4">
+          <!-- Giao diện Sáng / Tối -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold">Giao diện Tối (Dark Mode)</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Đồng bộ màu thanh trạng thái iPhone</p>
+            </div>
+            <button @click="toggleDarkMode()"
+                    :class="darkMode ? 'bg-indigo-600' : 'bg-slate-300'"
+                    class="focus:outline-none w-14 h-8 rounded-full p-1 transition-colors flex items-center">
+              <div class="w-6 h-6 rounded-full bg-white shadow transform transition-transform"
+                   :class="darkMode ? 'translate-x-6' : 'translate-x-0'"></div>
+            </button>
+          </div>
+
+          <!-- Công tắc "🔊 Âm thanh phản hồi" -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold">🔊 Âm thanh phản hồi</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Tiếng pop êm khi bấm & ting khi đạt 100%</p>
+            </div>
+            <button @click="toggleSound()"
+                    :class="soundEnabled ? 'bg-emerald-600' : 'bg-slate-300'"
+                    class="focus:outline-none w-14 h-8 rounded-full p-1 transition-colors flex items-center">
+              <div class="w-6 h-6 rounded-full bg-white shadow transform transition-transform"
+                   :class="soundEnabled ? 'translate-x-6' : 'translate-x-0'"></div>
+            </button>
+          </div>
+
+          <!-- Quản lý Thói quen đã tạm ẩn (Lưu trữ) -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold">📦 Thói quen đã tạm ẩn (Lưu trữ)</h3>
+              <span class="text-xs font-bold tabular-nums text-slate-400" x-text="getArchivedHabits().length"></span>
+            </div>
+            <p x-show="getArchivedHabits().length === 0" class="text-xs text-slate-500 dark:text-slate-400">
+              Chưa có thói quen nào đang lưu trữ. Khi tạm ẩn, các ngày trước mốc archivedAt vẫn được tính đầy đủ.
+            </p>
+            <div x-show="getArchivedHabits().length > 0" class="space-y-2">
+              <template x-for="h in getArchivedHabits()" :key="'arc-' + h.id">
+                <div class="flex items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-100/80 dark:bg-slate-900/60">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-xl shrink-0" x-text="h.icon"></span>
+                    <div class="min-w-0">
+                      <div class="text-xs font-bold truncate" x-text="h.name"></div>
+                      <div class="text-[10px] text-slate-500" x-text="h.archivedAt ? ('Ẩn từ ' + h.archivedAt) : 'Đã lưu trữ'"></div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <button @click="restoreArchivedHabit(h.id)"
+                            class="focus:outline-none h-9 px-2.5 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 text-xs font-bold active:scale-95">
+                      Hiện lại
+                    </button>
+                    <button @click="permanentDeleteArchivedId = h.id"
+                            class="focus:outline-none h-9 px-2.5 rounded-xl bg-rose-500/15 text-rose-500 text-xs font-bold active:scale-95">
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Sao lưu & Khôi phục dữ liệu -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-3">
+            <div>
+              <h3 class="text-sm font-bold">Sao lưu & Khôi phục dữ liệu</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Lưu toàn bộ thói quen, lịch sử, ngày nghỉ, cảm xúc & nhật ký (.json)</p>
+            </div>
+            <div class="grid grid-cols-1 gap-2.5">
+              <button @click="exportBackupJson()"
+                      class="focus:outline-none w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:scale-98 transition">
+                <span>⬇ Xuất file sao lưu (.json)</span>
+              </button>
+              <label class="w-full h-12 rounded-2xl bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition">
+                <span>⬆ Nhập file sao lưu (.json)</span>
+                <input type="file" accept=".json,application/json" @change="importBackupJson($event)" class="hidden" />
+              </label>
+            </div>
+          </div>
+
+          <!-- Bảo vệ lịch sử dữ liệu -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-3">
+            <div>
+              <h3 class="text-sm font-bold text-amber-500">Đặt lại & An toàn dữ liệu</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Khôi phục 6 thói quen mẫu sẽ giữ nguyên toàn bộ lịch sử tiến độ cũ.</p>
+            </div>
+            <button @click="confirmResetOpen = true"
+                    class="focus:outline-none w-full h-12 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold text-xs flex items-center justify-center active:scale-98 transition">
+              Khôi phục thói quen mặc định (Giữ lịch sử)
+            </button>
+            <button @click="clearHistoryStep = 1"
+                    class="focus:outline-none w-full h-12 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold text-xs flex items-center justify-center active:scale-98 transition">
+              Xóa toàn bộ lịch sử tiến độ
+            </button>
+          </div>
+
+          <!-- Hướng dẫn 3 bước Thêm vào MH chính iPhone -->
+          <div class="rounded-3xl p-4 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-2.5">
+            <h3 class="text-sm font-bold">Cài đặt PWA lên Màn hình chính iPhone</h3>
+            <ol class="text-xs text-slate-600 dark:text-slate-300 space-y-2 list-decimal list-inside">
+              <li>Mở trang này bằng trình duyệt <strong>Safari</strong> trên iPhone 14 Plus.</li>
+              <li>Chạm biểu tượng <strong>Chia sẻ (Share)</strong> ở thanh công cụ dưới cùng.</li>
+              <li>Cuộn chọn <strong>"Thêm vào MH chính" (Add to Home Screen)</strong> rồi bấm Thêm.</li>
+            </ol>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- BOTTOM NAVIGATION CỐ ĐỊNH PHÍA DƯỚI (focus:outline-none trên cả 4 nút) -->
+      <nav class="ios-bottom-nav shrink-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 px-3 pt-2 z-20">
+        <div class="grid grid-cols-4 items-center gap-1">
+          <button @click="switchTab('habits')"
+                  :class="activeTab === 'habits' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
+                  class="focus:outline-none flex flex-col items-center justify-center min-h-[48px] rounded-2xl transition active:scale-95">
+            <span class="text-lg">✓</span>
+            <span class="text-[11px] mt-0.5">Thói quen</span>
+          </button>
+
+          <button @click="switchTab('stats')"
+                  :class="activeTab === 'stats' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
+                  class="focus:outline-none flex flex-col items-center justify-center min-h-[48px] rounded-2xl transition active:scale-95">
+            <span class="text-lg">📊</span>
+            <span class="text-[11px] mt-0.5">Thống kê</span>
+          </button>
+
+          <div class="flex items-center justify-center">
+            <button @click="openAddModal()"
+                    class="focus:outline-none h-12 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md shadow-indigo-600/30 active:scale-95 transition">
+              <span class="text-base leading-none">+</span>
+              <span>Thêm</span>
+            </button>
+          </div>
+
+          <button @click="switchTab('settings')"
+                  :class="activeTab === 'settings' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
+                  class="focus:outline-none flex flex-col items-center justify-center min-h-[48px] rounded-2xl transition active:scale-95">
+            <span class="text-lg">⚙️</span>
+            <span class="text-[11px] mt-0.5">Cài đặt</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- BOTTOM SHEET THÊM / CHỈNH SỬA THÓI QUEN (Thêm pb-8 trong vùng cuộn) -->
+      <div x-show="sheetOpen" x-cloak class="fixed inset-0 z-40 flex items-end justify-center bg-black/60 backdrop-blur-xs">
+        <div @click.away="sheetOpen = false"
+             class="w-full sm:w-[428px] max-h-[88dvh] bg-white dark:bg-slate-900 rounded-t-3xl border-t border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden shadow-2xl">
+          <div class="w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mt-2.5"></div>
+          <div class="px-5 py-3 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+            <h3 class="text-base font-bold" x-text="editingHabitId ? 'Chỉnh sửa thói quen' : 'Thêm thói quen mới'"></h3>
+            <button @click="sheetOpen = false" class="focus:outline-none w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm font-bold">✕</button>
+          </div>
+
+          <div class="p-5 pb-8 overflow-y-auto space-y-4 flex-1 no-scrollbar">
+            <!-- Kho gợi ý 1 chạm (Quick Presets) chỉ hiện khi tạo mới -->
+            <div x-show="!editingHabitId">
+              <label class="block text-xs font-bold mb-1.5 text-slate-600 dark:text-slate-300">✨ Gợi ý nhanh 1 chạm</label>
+              <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                <template x-for="preset in quickPresets" :key="preset.chipLabel">
+                  <button type="button" @click="applyQuickPreset(preset)"
+                          class="focus:outline-none shrink-0 px-3 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-500/15 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 active:scale-95 transition whitespace-nowrap"
+                          x-text="preset.chipLabel"></button>
+                </template>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold mb-1.5 text-slate-600 dark:text-slate-300">Tên thói quen</label>
+              <input type="text" x-model="form.name" placeholder="VD: Đọc sách, Chạy bộ..."
+                     class="w-full h-11 px-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold mb-1.5 text-slate-600 dark:text-slate-300">Khung giờ trong ngày</label>
+              <div class="grid grid-cols-3 gap-2">
+                <template x-for="g in timeGroups" :key="g.key">
+                  <button type="button" @click="form.timeOfDay = g.key"
+                          :class="form.timeOfDay === g.key ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                          class="focus:outline-none h-11 rounded-2xl text-xs transition" x-text="g.shortLabel"></button>
+                </template>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold mb-1.5 text-slate-600 dark:text-slate-300">Chế độ theo dõi</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" @click="form.mode = 'check'"
+                        :class="form.mode === 'check' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                        class="focus:outline-none h-11 rounded-2xl text-xs">Đánh dấu 1 lần</button>
+                <button type="button" @click="form.mode = 'counter'"
+                        :class="form.mode === 'counter' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                        class="focus:outline-none h-11 rounded-2xl text-xs">Đếm mục tiêu</button>
+              </div>
+            </div>
+
+            <div x-show="form.mode === 'counter'" class="grid grid-cols-3 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold mb-1 text-slate-500">Mục tiêu</label>
+                <input type="number" min="1" x-model.number="form.target"
+                       class="w-full h-11 px-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold tabular-nums focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold mb-1 text-slate-500">Bước cộng</label>
+                <input type="number" min="1" x-model.number="form.step"
+                       class="w-full h-11 px-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold tabular-nums focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold mb-1 text-slate-500">Đơn vị</label>
+                <input type="text" x-model="form.unit" placeholder="phút, ml..."
+                       class="w-full h-11 px-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:outline-none" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold mb-1.5 text-slate-600 dark:text-slate-300">Lịch lặp lại trong tuần</label>
+              <div class="grid grid-cols-7 gap-1.5">
+                <template x-for="d in weekDayOptions" :key="d.val">
+                  <button type="button" @click="toggleFormDay(d.val)"
+                          :class="form.daysOfWeek.includes(d.val) ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'"
+                          class="focus:outline-none h-11 rounded-xl text-xs transition" x-text="d.label"></button>
+                </template>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold mb-1.5 text-slate-600 dark:text-slate-300">Biểu tượng (Emoji)</label>
+              <div class="grid grid-cols-8 gap-1.5">
+                <template x-for="em in emojiList" :key="em">
+                  <button type="button" @click="form.icon = em"
+                          :class="form.icon === em ? 'bg-indigo-600/20 ring-2 ring-indigo-500' : 'bg-slate-100 dark:bg-slate-800'"
+                          class="focus:outline-none h-10 rounded-xl text-lg flex items-center justify-center" x-text="em"></button>
+                </template>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold mb-1.5 text-slate-600 dark:text-slate-300">Màu sắc chủ đạo</label>
+              <div class="grid grid-cols-6 gap-2">
+                <template x-for="c in colorOptions" :key="c.key">
+                  <button type="button" @click="form.color = c.key"
+                          :class="[c.dot, form.color === c.key ? 'ring-4 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900' : 'opacity-75']"
+                          class="focus:outline-none h-10 rounded-2xl transition"></button>
+                </template>
+              </div>
+            </div>
+
+            <div x-show="editingHabitId" class="pt-2 border-t border-slate-200/80 dark:border-slate-800">
+              <button type="button" @click="archiveCurrentHabit()"
+                      class="focus:outline-none w-full h-11 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold text-xs">
+                📦 Tạm ẩn (Lưu trữ) — Giữ nguyên thống kê quá khứ
+              </button>
+            </div>
+          </div>
+
+          <div class="p-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 ios-bottom-nav">
+            <template x-if="editingHabitId">
+              <button type="button" @click="confirmDeleteOpen = true"
+                      class="focus:outline-none h-12 px-4 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold text-xs">
+                Xóa
+              </button>
+            </template>
+            <button type="button" @click="saveHabitForm()"
+                    class="focus:outline-none flex-1 h-12 rounded-2xl bg-indigo-600 text-white font-bold text-sm shadow-md shadow-indigo-600/25">
+              Lưu thói quen
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HỘP THOẠI XÁC NHẬN XÓA THÓI QUEN -->
+      <div x-show="confirmDeleteOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5">
+        <div class="w-full max-w-xs rounded-3xl bg-white dark:bg-slate-800 p-5 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+          <h4 class="text-base font-bold">Xóa vĩnh viễn thói quen này?</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Nếu muốn giữ tỷ lệ thống kê quá khứ, hãy chọn Tạm ẩn (Lưu trữ) thay vì xóa cứng.</p>
+          <div class="grid grid-cols-2 gap-2.5">
+            <button @click="confirmDeleteOpen = false" class="focus:outline-none h-11 rounded-2xl bg-slate-100 dark:bg-slate-700 font-bold text-xs">Hủy</button>
+            <button @click="deleteCurrentHabit()" class="focus:outline-none h-11 rounded-2xl bg-rose-600 text-white font-bold text-xs">Xác nhận xóa</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HỘP THOẠI XÁC NHẬN XÓA VĨNH VIỄN THÓI QUEN LƯU TRỮ -->
+      <div x-show="permanentDeleteArchivedId !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5">
+        <div class="w-full max-w-xs rounded-3xl bg-white dark:bg-slate-800 p-5 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+          <h4 class="text-base font-bold">Xóa vĩnh viễn khỏi lưu trữ?</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Thao tác này không thể hoàn tác.</p>
+          <div class="grid grid-cols-2 gap-2.5">
+            <button @click="permanentDeleteArchivedId = null" class="focus:outline-none h-11 rounded-2xl bg-slate-100 dark:bg-slate-700 font-bold text-xs">Hủy</button>
+            <button @click="confirmPermanentDeleteArchived()" class="focus:outline-none h-11 rounded-2xl bg-rose-600 text-white font-bold text-xs">Xóa ngay</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HỘP THOẠI XÁC NHẬN KHÔI PHỤC MẶC ĐỊNH (GIỮ LỊCH SỬ) -->
+      <div x-show="confirmResetOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5">
+        <div class="w-full max-w-xs rounded-3xl bg-white dark:bg-slate-800 p-5 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+          <h4 class="text-base font-bold">Khôi phục 6 thói quen mẫu?</h4>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Danh sách sẽ đặt lại về 6 thói quen mặc định. Toàn bộ lịch sử tiến độ cũ vẫn được giữ nguyên.</p>
+          <div class="grid grid-cols-2 gap-2.5">
+            <button @click="confirmResetOpen = false" class="focus:outline-none h-11 rounded-2xl bg-slate-100 dark:bg-slate-700 font-bold text-xs">Hủy</button>
+            <button @click="resetToDefaults()" class="focus:outline-none h-11 rounded-2xl bg-amber-500 text-white font-bold text-xs">Khôi phục</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HỘP THOẠI XÁC NHẬN 2 LỚP XÓA TOÀN BỘ LỊCH SỬ -->
+      <div x-show="clearHistoryStep > 0" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-5">
+        <div class="w-full max-w-xs rounded-3xl bg-white dark:bg-slate-800 p-5 space-y-4 shadow-2xl border border-rose-500/40">
+          <template x-if="clearHistoryStep === 1">
+            <div class="space-y-4">
+              <h4 class="text-base font-bold text-rose-500">Bước 1/2: Xóa toàn bộ lịch sử?</h4>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Tất cả lịch sử tiến độ, chuỗi streak, ngày nghỉ và nhật ký sẽ bị xóa sạch (thói quen vẫn giữ nguyên).</p>
+              <div class="grid grid-cols-2 gap-2.5">
+                <button @click="clearHistoryStep = 0" class="focus:outline-none h-11 rounded-2xl bg-slate-100 dark:bg-slate-700 font-bold text-xs">Hủy</button>
+                <button @click="clearHistoryStep = 2" class="focus:outline-none h-11 rounded-2xl bg-rose-600 text-white font-bold text-xs">Tiếp tục (1/2)</button>
+              </div>
+            </div>
+          </template>
+          <template x-if="clearHistoryStep === 2">
+            <div class="space-y-4">
+              <h4 class="text-base font-bold text-rose-500">Bước 2/2: Chắc chắn xóa trắng?</h4>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Xác nhận lần cuối: Toàn bộ lịch sử sẽ mất vĩnh viễn nếu bạn chưa xuất file sao lưu .json.</p>
+              <div class="grid grid-cols-2 gap-2.5">
+                <button @click="clearHistoryStep = 0" class="focus:outline-none h-11 rounded-2xl bg-slate-100 dark:bg-slate-700 font-bold text-xs">Quay lại</button>
+                <button @click="clearAllHistory()" class="focus:outline-none h-11 rounded-2xl bg-rose-600 text-white font-bold text-xs">Xóa sạch ngay</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function habitFlowApp() {
+      return {
+        darkMode: true,
+        soundEnabled: true,
+        audioCtx: null,
+        activeTab: 'habits',
+        todayKey: '',
+        selectedDate: '',
+        currentTimeOfDay: 'morning',
+        weekOffset: 0,
+        habits: [],
+        logs: {},
+        notes: {},
+        restDays: {},
+        moods: {},
+        hideCompleted: false,
+        reorderMode: false,
+        collapsedGroups: { morning: false, day: false, evening: false },
+        sheetOpen: false,
+        editingHabitId: null,
+        confirmDeleteOpen: false,
+        confirmResetOpen: false,
+        clearHistoryStep: 0,
+        permanentDeleteArchivedId: null,
+        quickInputHabitId: null,
+        quickInputValue: 0,
+        activeTimer: null,
+        timerInterval: null,
+        toast: { visible: false, message: '', tone: 'default', undo: null },
+        toastTimeout: null,
+        moodOptions: [
+          { emoji: '😫', label: 'Mệt mỏi' },
+          { emoji: '😐', label: 'Bình thường' },
+          { emoji: '🙂', label: 'Ổn áp' },
+          { emoji: '😄', label: 'Tích cực' },
+          { emoji: '🔥', label: 'Bùng nổ' }
+        ],
+        quickPresets: [
+          { chipLabel: '🧘 Thiền 10p', name: 'Thiền tĩnh tâm', timeOfDay: 'morning', mode: 'counter', target: 10, step: 5, unit: 'phút', icon: '🧘', color: 'emerald' },
+          { chipLabel: '🇬🇧 Tiếng Anh 30p', name: 'Học tiếng Anh', timeOfDay: 'day', mode: 'counter', target: 30, step: 10, unit: 'phút', icon: '🧠', color: 'sky' },
+          { chipLabel: '📵 Không ĐT trước ngủ', name: 'Không ĐT trước ngủ', timeOfDay: 'evening', mode: 'check', target: 1, step: 1, unit: 'lần', icon: '📵', color: 'indigo' },
+          { chipLabel: '🥗 Ăn rau/trái cây', name: 'Ăn rau & trái cây', timeOfDay: 'day', mode: 'counter', target: 3, step: 1, unit: 'phần', icon: '🥗', color: 'emerald' },
+          { chipLabel: '✍️ Viết nhật ký', name: 'Viết nhật ký', timeOfDay: 'evening', mode: 'check', target: 1, step: 1, unit: 'lần', icon: '✍️', color: 'amber' }
+        ],
+        timeGroups: [
+          { key: 'morning', label: '🌅 Buổi Sáng', shortLabel: 'Buổi Sáng' },
+          { key: 'day', label: '☀️ Trong Ngày', shortLabel: 'Trong Ngày' },
+          { key: 'evening', label: '🌙 Buổi Tối', shortLabel: 'Buổi Tối' }
+        ],
+        weekDayOptions: [
+          { val: 1, label: 'T2' }, { val: 2, label: 'T3' }, { val: 3, label: 'T4' },
+          { val: 4, label: 'T5' }, { val: 5, label: 'T6' }, { val: 6, label: 'T7' }, { val: 7, label: 'CN' }
+        ],
+        emojiList: ['🪥','💧','💪','🚶','📚','💤','🧘','🥗','🍎','🏃','🚴','🧠','✍️','🎯','🌅','🍵'],
+        colorOptions: [
+          { key: 'amber', dot: 'bg-amber-500' },
+          { key: 'sky', dot: 'bg-sky-500' },
+          { key: 'rose', dot: 'bg-rose-500' },
+          { key: 'emerald', dot: 'bg-emerald-500' },
+          { key: 'purple', dot: 'bg-purple-500' },
+          { key: 'indigo', dot: 'bg-indigo-500' }
+        ],
+        form: {
+          name: '', timeOfDay: 'morning', mode: 'counter', target: 1, step: 1, unit: 'lần',
+          icon: '🪥', color: 'indigo', daysOfWeek: [1,2,3,4,5,6,7]
+        },
+
+        init() {
+          const now = new Date();
+          this.todayKey = this.formatDateKey(now);
+          this.selectedDate = this.todayKey;
+          this.currentTimeOfDay = this.detectTimeOfDay(now);
+
+          const savedTheme = localStorage.getItem('habitflow_dark');
+          this.darkMode = savedTheme !== null ? savedTheme === 'true' : true;
+          this.syncThemeMeta();
+
+          const savedSound = localStorage.getItem('habitflow_sound');
+          this.soundEnabled = savedSound !== null ? savedSound === 'true' : true;
+
+          const savedHabits = localStorage.getItem('habitflow_habits');
+          const savedLogs = localStorage.getItem('habitflow_logs');
+          const savedNotes = localStorage.getItem('habitflow_notes');
+          const savedRestDays = localStorage.getItem('habitflow_rest_days');
+          const savedMoods = localStorage.getItem('habitflow_moods');
+
+          if (savedHabits) {
+            try { this.habits = JSON.parse(savedHabits); } catch (e) { this.habits = this.getDefaultHabits(); }
+          } else {
+            this.habits = this.getDefaultHabits();
+          }
+
+          if (savedLogs) {
+            try { this.logs = JSON.parse(savedLogs); } catch (e) { this.logs = {}; }
+          }
+
+          if (savedNotes) {
+            try { this.notes = JSON.parse(savedNotes); } catch (e) { this.notes = {}; }
+          }
+
+          if (savedRestDays) {
+            try { this.restDays = JSON.parse(savedRestDays); } catch (e) { this.restDays = {}; }
+          }
+
+          if (savedMoods) {
+            try { this.moods = JSON.parse(savedMoods); } catch (e) { this.moods = {}; }
+          }
+
+          this.persist();
+
+          const checkRollover = () => {
+            const current = new Date();
+            this.currentTimeOfDay = this.detectTimeOfDay(current);
+            const realToday = this.formatDateKey(current);
+            if (realToday !== this.todayKey) {
+              this.todayKey = realToday;
+              this.weekOffset = 0;
+              this.selectedDate = realToday;
+              this.quickInputHabitId = null;
+              this.showToast('Chào ngày mới! Đã tự động cập nhật lịch hôm nay.', 'success');
+            }
+          };
+          window.addEventListener('focus', checkRollover);
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') checkRollover();
+          });
+          setInterval(checkRollover, 60000);
+        },
+
+        syncThemeMeta() {
+          document.documentElement.classList.toggle('dark', this.darkMode);
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) {
+            meta.setAttribute('content', this.darkMode ? '#0f172a' : '#ffffff');
+          }
+        },
+
+        playSound(type = 'pop') {
+          if (!this.soundEnabled) return;
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            if (!this.audioCtx) this.audioCtx = new AudioCtx();
+            if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+            const now = this.audioCtx.currentTime;
+            if (type === 'pop') {
+              const osc = this.audioCtx.createOscillator();
+              const gain = this.audioCtx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(340, now);
+              osc.frequency.exponentialRampToValueAtTime(580, now + 0.065);
+              gain.gain.setValueAtTime(0.08, now);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+              osc.connect(gain);
+              gain.connect(this.audioCtx.destination);
+              osc.start(now);
+              osc.stop(now + 0.075);
+            } else {
+              [587.33, 880].forEach((freq, idx) => {
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                const start = now + idx * 0.08;
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, start);
+                gain.gain.setValueAtTime(0.11, start);
+                gain.gain.exponentialRampToValueAtTime(0.001, start + 0.24);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(start);
+                osc.stop(start + 0.25);
+              });
+            }
+          } catch (e) {}
+        },
+
+        toggleSound() {
+          this.soundEnabled = !this.soundEnabled;
+          this.persist();
+          if (this.soundEnabled) this.playSound('pop');
+        },
+
+        detectTimeOfDay(d) {
+          const h = d.getHours();
+          if (h >= 5 && h < 11) return 'morning';
+          if (h >= 11 && h < 17) return 'day';
+          return 'evening';
+        },
+
+        getDefaultHabits() {
+          return [
+            { id: 'h1', name: 'Đánh răng', timeOfDay: 'morning', mode: 'counter', target: 2, step: 1, unit: 'lần', icon: '🪥', color: 'amber', daysOfWeek: [1,2,3,4,5,6,7], archived: false },
+            { id: 'h2', name: 'Uống nước', timeOfDay: 'day', mode: 'counter', target: 2000, step: 250, unit: 'ml', icon: '💧', color: 'sky', daysOfWeek: [1,2,3,4,5,6,7], archived: false },
+            { id: 'h3', name: 'Hít đất', timeOfDay: 'evening', mode: 'counter', target: 50, step: 10, unit: 'cái', icon: '💪', color: 'rose', daysOfWeek: [1,2,3,4,5,6,7], archived: false },
+            { id: 'h4', name: 'Đi bộ', timeOfDay: 'evening', mode: 'counter', target: 30, step: 10, unit: 'phút', icon: '🚶', color: 'emerald', daysOfWeek: [1,2,3,4,5,6,7], archived: false },
+            { id: 'h5', name: 'Đọc sách', timeOfDay: 'evening', mode: 'counter', target: 15, step: 5, unit: 'phút', icon: '📚', color: 'purple', daysOfWeek: [1,2,3,4,5,6,7], archived: false },
+            { id: 'h6', name: 'Ngủ trước 23h30', timeOfDay: 'evening', mode: 'check', target: 1, step: 1, unit: 'lần', icon: '💤', color: 'indigo', daysOfWeek: [1,2,3,4,5,6,7], archived: false }
+          ];
+        },
+
+        persist() {
+          localStorage.setItem('habitflow_habits', JSON.stringify(this.habits));
+          localStorage.setItem('habitflow_logs', JSON.stringify(this.logs));
+          localStorage.setItem('habitflow_dark', String(this.darkMode));
+          localStorage.setItem('habitflow_sound', String(this.soundEnabled));
+          localStorage.setItem('habitflow_notes', JSON.stringify(this.notes));
+          localStorage.setItem('habitflow_rest_days', JSON.stringify(this.restDays));
+          localStorage.setItem('habitflow_moods', JSON.stringify(this.moods));
+        },
+
+        showToast(message, tone = 'default', undo = null) {
+          if (this.toastTimeout) clearTimeout(this.toastTimeout);
+          this.toast = { visible: true, message, tone, undo };
+          this.toastTimeout = setTimeout(() => {
+            this.toast.visible = false;
+          }, 3500);
+        },
+
+        undoLastAction() {
+          if (!this.toast.undo) return;
+          const { habitId, dateKey, prevValue } = this.toast.undo;
+          if (!this.logs[dateKey]) this.logs[dateKey] = {};
+          this.logs[dateKey][habitId] = prevValue;
+          this.persist();
+          this.showToast('Đã hoàn tác thao tác vừa rồi.');
+        },
+
+        switchTab(tab) {
+          this.activeTab = tab;
+          this.quickInputHabitId = null;
+          if (this.$refs.mainScroll) this.$refs.mainScroll.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+
+        toggleDarkMode() {
+          this.darkMode = !this.darkMode;
+          this.syncThemeMeta();
+          this.persist();
+        },
+
+        toggleGroupCollapse(key) {
+          this.collapsedGroups[key] = !this.collapsedGroups[key];
+        },
+
+        isRestDay(dateKey) {
+          return Boolean(this.restDays[dateKey]);
+        },
+
+        toggleRestDay(dateKey) {
+          if (this.restDays[dateKey]) {
+            delete this.restDays[dateKey];
+            this.showToast('Đã tắt chế độ Ngày nghỉ.');
+          } else {
+            this.restDays[dateKey] = true;
+            this.showToast('⛱️ Đã bật Ngày nghỉ — Chuỗi ngày được bảo vệ an toàn!', 'success');
+          }
+          this.restDays = { ...this.restDays };
+          this.persist();
+        },
+
+        selectMood(emoji) {
+          if (this.moods[this.selectedDate] === emoji) {
+            delete this.moods[this.selectedDate];
+          } else {
+            this.moods[this.selectedDate] = emoji;
+            this.playSound('pop');
+          }
+          this.moods = { ...this.moods };
+          this.persist();
+        },
+
+        updateDailyNote(text) {
+          this.notes[this.selectedDate] = text;
+          this.persist();
+        },
+
+        formatDateKey(d) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return y + '-' + m + '-' + day;
+        },
+
+        parseDateKey(key) {
+          const parts = key.split('-').map(Number);
+          return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+        },
+
+        addDays(d, n) {
+          const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+          copy.setDate(copy.getDate() + n);
+          return copy;
+        },
+
+        getDayOfWeek1To7(d) {
+          const day = d.getDay();
+          return day === 0 ? 7 : day;
+        },
+
+        getColorClasses(color) {
+          const map = {
+            amber: { bgSoft: 'bg-amber-500/15', text: 'text-amber-500', bar: 'bg-amber-500', btn: 'bg-amber-500 text-white' },
+            sky: { bgSoft: 'bg-sky-500/15', text: 'text-sky-500', bar: 'bg-sky-500', btn: 'bg-sky-500 text-white' },
+            rose: { bgSoft: 'bg-rose-500/15', text: 'text-rose-500', bar: 'bg-rose-500', btn: 'bg-rose-500 text-white' },
+            emerald: { bgSoft: 'bg-emerald-500/15', text: 'text-emerald-500', bar: 'bg-emerald-500', btn: 'bg-emerald-500 text-white' },
+            purple: { bgSoft: 'bg-purple-500/15', text: 'text-purple-500', bar: 'bg-purple-500', btn: 'bg-purple-500 text-white' },
+            indigo: { bgSoft: 'bg-indigo-500/15', text: 'text-indigo-500', bar: 'bg-indigo-500', btn: 'bg-indigo-500 text-white' }
+          };
+          return map[color] || map.indigo;
+        },
+
+        isMinuteHabit(habit) {
+          return habit.mode === 'counter' && /phút/i.test(habit.unit || '');
+        },
+
+        getRemainingMins(habit) {
+          return Math.max(0, Math.round(habit.target - this.getHabitVal(habit, this.selectedDate)));
+        },
+
+        toggleMiniTimer(habit) {
+          if (this.activeTimer && this.activeTimer.habitId === habit.id) {
+            this.closeMiniTimer();
+            return;
+          }
+          this.closeMiniTimer();
+          const rem = this.getRemainingMins(habit);
+          const defaultMins = Math.max(1, rem > 0 ? Math.min(habit.step, rem) : habit.step);
+          this.activeTimer = {
+            habitId: habit.id,
+            dateKey: this.selectedDate,
+            durationMinutes: defaultMins,
+            remainingSeconds: defaultMins * 60,
+            isRunning: false,
+            endTimestamp: null
+          };
+        },
+
+        selectTimerMinutes(mins) {
+          if (!this.activeTimer) return;
+          const safe = Math.max(1, Math.round(mins));
+          this.activeTimer.durationMinutes = safe;
+          this.activeTimer.remainingSeconds = safe * 60;
+          this.activeTimer.isRunning = false;
+          this.activeTimer.endTimestamp = null;
+        },
+
+        getTimerElapsedSeconds() {
+          if (!this.activeTimer) return 0;
+          return Math.max(0, this.activeTimer.durationMinutes * 60 - this.activeTimer.remainingSeconds);
+        },
+
+        getEarlyCommitMinutes() {
+          return Math.max(1, Math.round(this.getTimerElapsedSeconds() / 60));
+        },
+
+        commitPartialTimer(habit) {
+          if (!this.activeTimer || this.activeTimer.habitId !== habit.id) return;
+          if (this.getTimerElapsedSeconds() < 1) return;
+          const mins = this.getEarlyCommitMinutes();
+          const dKey = this.activeTimer.dateKey;
+          this.closeMiniTimer();
+          const cur = this.getHabitVal(habit, dKey);
+          this.setHabitVal(habit, dKey, cur + mins, true, '✓ Đã chốt sớm +' + mins + ' phút cho ' + habit.name, true);
+        },
+
+        startPauseTimer() {
+          if (!this.activeTimer) return;
+          if (this.activeTimer.isRunning) {
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            this.timerInterval = null;
+            this.activeTimer.remainingSeconds = Math.max(0, Math.ceil((this.activeTimer.endTimestamp - Date.now()) / 1000));
+            this.activeTimer.isRunning = false;
+            this.activeTimer.endTimestamp = null;
+          } else {
+            this.activeTimer.isRunning = true;
+            this.activeTimer.endTimestamp = Date.now() + this.activeTimer.remainingSeconds * 1000;
+            this.timerInterval = setInterval(() => {
+              if (!this.activeTimer || !this.activeTimer.isRunning) return;
+              const left = Math.ceil((this.activeTimer.endTimestamp - Date.now()) / 1000);
+              if (left <= 0) {
+                const h = this.habits.find(item => item.id === this.activeTimer.habitId);
+                const mins = this.activeTimer.durationMinutes;
+                const dKey = this.activeTimer.dateKey;
+                this.closeMiniTimer();
+                if (h) {
+                  const cur = this.getHabitVal(h, dKey);
+                  this.setHabitVal(h, dKey, cur + mins, true, '⏱ Hết giờ! Đã cộng +' + mins + ' phút cho ' + h.name, true);
+                }
+              } else {
+                this.activeTimer.remainingSeconds = left;
+              }
+            }, 500);
+          }
+        },
+
+        resetTimer() {
+          if (!this.activeTimer) return;
+          if (this.timerInterval) clearInterval(this.timerInterval);
+          this.timerInterval = null;
+          this.activeTimer.remainingSeconds = this.activeTimer.durationMinutes * 60;
+          this.activeTimer.isRunning = false;
+          this.activeTimer.endTimestamp = null;
+        },
+
+        closeMiniTimer() {
+          if (this.timerInterval) clearInterval(this.timerInterval);
+          this.timerInterval = null;
+          this.activeTimer = null;
+        },
+
+        formatTimerMMSS(sec) {
+          const s = Math.max(0, Math.ceil(sec));
+          const m = Math.floor(s / 60);
+          const r = s % 60;
+          return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+        },
+
+        getTimerProgressPct() {
+          if (!this.activeTimer) return 0;
+          const total = Math.max(1, this.activeTimer.durationMinutes * 60);
+          return Math.min(100, Math.round(((total - this.activeTimer.remainingSeconds) / total) * 100));
+        },
+
+        moveHabitInGroup(habitId, direction) {
+          const target = this.habits.find(h => h.id === habitId);
+          if (!target) return;
+          const groupIndices = [];
+          this.habits.forEach((h, idx) => {
+            if (!h.archived && h.timeOfDay === target.timeOfDay && this.isHabitScheduled(h, this.selectedDate)) {
+              groupIndices.push(idx);
+            }
+          });
+          const curPos = groupIndices.findIndex(idx => this.habits[idx].id === habitId);
+          const swapPos = curPos + direction;
+          if (curPos === -1 || swapPos < 0 || swapPos >= groupIndices.length) return;
+          const idxA = groupIndices[curPos];
+          const idxB = groupIndices[swapPos];
+          const tmp = this.habits[idxA];
+          this.habits[idxA] = this.habits[idxB];
+          this.habits[idxB] = tmp;
+          this.habits = [...this.habits];
+          this.persist();
+        },
+
+        isViewingCurrentWeek() {
+          return this.weekOffset === 0;
+        },
+
+        changeWeek(dir) {
+          this.weekOffset += dir;
+          const days = this.getWeekDays();
+          this.selectedDate = this.weekOffset === 0 ? this.todayKey : days[0].dateKey;
+        },
+
+        goToToday() {
+          this.weekOffset = 0;
+          this.selectedDate = this.todayKey;
+        },
+
+        jumpToDate(targetKey) {
+          const todayBase = this.parseDateKey(this.todayKey);
+          const todayMon = this.addDays(todayBase, -(this.getDayOfWeek1To7(todayBase) - 1));
+          const targetBase = this.parseDateKey(targetKey);
+          const targetMon = this.addDays(targetBase, -(this.getDayOfWeek1To7(targetBase) - 1));
+          const diffWeeks = Math.round((targetMon.getTime() - todayMon.getTime()) / (7 * 86400000));
+          this.weekOffset = diffWeeks;
+          this.selectedDate = targetKey;
+          this.quickInputHabitId = null;
+          this.switchTab('habits');
+        },
+
+        selectDate(key) {
+          this.selectedDate = key;
+          this.quickInputHabitId = null;
+        },
+
+        formatSelectedDateLabel() {
+          if (!this.selectedDate) return '';
+          const d = this.parseDateKey(this.selectedDate);
+          const names = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+          return names[d.getDay()] + ', ' + d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+        },
+
+        getWeekDays() {
+          const base = this.addDays(this.parseDateKey(this.todayKey), this.weekOffset * 7);
+          const dow = this.getDayOfWeek1To7(base);
+          const monday = this.addDays(base, -(dow - 1));
+          const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+          const res = [];
+          for (let i = 0; i < 7; i++) {
+            const d = this.addDays(monday, i);
+            const key = this.formatDateKey(d);
+            const sum = this.getDaySummary(key);
+            res.push({
+              label: labels[i],
+              dayNum: d.getDate(),
+              dateKey: key,
+              isToday: key === this.todayKey,
+              isRest: Boolean(this.restDays[key]),
+              hasNoteOrMood: Boolean((this.notes[key] && this.notes[key].trim().length > 0) || this.moods[key]),
+              pct: sum.percentage
+            });
+          }
+          return res;
+        },
+
+        isHabitScheduled(habit, dateKey) {
+          const d = this.parseDateKey(dateKey);
+          return habit.daysOfWeek.includes(this.getDayOfWeek1To7(d));
+        },
+
+        // Mục 3: Bảo vệ dữ liệu lưu trữ chính xác với mốc archivedAt
+        isHabitApplicable(habit, dateKey) {
+          if (habit.archived) {
+            if (habit.archivedAt) {
+              if (dateKey >= habit.archivedAt) return false;
+              return this.isHabitScheduled(habit, dateKey);
+            }
+            if (dateKey >= this.todayKey) return false;
+            return Boolean(this.logs[dateKey] && this.logs[dateKey][habit.id] > 0);
+          }
+          return this.isHabitScheduled(habit, dateKey);
+        },
+
+        getArchivedHabits() {
+          return this.habits.filter(h => h.archived);
+        },
+
+        getHabitsByGroup(groupKey, applyHideFilter = true) {
+          const list = this.habits.filter(h => h.timeOfDay === groupKey && this.isHabitApplicable(h, this.selectedDate));
+          if (applyHideFilter && this.hideCompleted) {
+            return list.filter(h => !this.isHabitCompleted(h, this.selectedDate));
+          }
+          return list;
+        },
+
+        getGroupCompletedCount(groupKey) {
+          return this.getHabitsByGroup(groupKey, false).filter(h => this.isHabitCompleted(h, this.selectedDate)).length;
+        },
+
+        isGroupCompleted(groupKey) {
+          const all = this.getHabitsByGroup(groupKey, false);
+          return all.length > 0 && this.getGroupCompletedCount(groupKey) === all.length;
+        },
+
+        getHabitVal(habit, dateKey) {
+          return (this.logs[dateKey] && this.logs[dateKey][habit.id]) ? this.logs[dateKey][habit.id] : 0;
+        },
+
+        isHabitCompleted(habit, dateKey) {
+          return this.getHabitVal(habit, dateKey) >= habit.target;
+        },
+
+        setHabitVal(habit, dateKey, newVal, allowUndo = false, customMsg = null, isTimerFinish = false) {
+          const prevVal = this.getHabitVal(habit, dateKey);
+          const sanitized = Math.max(0, Math.round(newVal * 100) / 100);
+          if (sanitized === prevVal) return;
+
+          const prevPct = this.getDaySummary(dateKey).percentage;
+          const wasDone = prevVal >= habit.target;
+          const isNowDone = sanitized >= habit.target;
+
+          if (!this.logs[dateKey]) this.logs[dateKey] = {};
+          this.logs[dateKey][habit.id] = sanitized;
+          this.persist();
+
+          const nextPct = this.getDaySummary(dateKey).percentage;
+          const hit100 = prevPct < 100 && nextPct >= 100;
+          const undoPayload = allowUndo ? { habitId: habit.id, dateKey, prevValue: prevVal } : null;
+
+          if (hit100 || isTimerFinish || (!wasDone && isNowDone)) {
+            this.playSound('ting');
+          } else if (sanitized > prevVal) {
+            this.playSound('pop');
+          }
+
+          if (hit100 && typeof confetti === 'function') {
+            confetti({ particleCount: 75, spread: 68, origin: { y: 0.7 } });
+            this.showToast('🎉 Tuyệt vời! Bạn đã hoàn thành 100% hôm nay!', 'success', undoPayload);
+          } else if (allowUndo) {
+            const msg = customMsg || (habit.mode === 'check'
+              ? (sanitized >= habit.target ? 'Đã hoàn thành "' + habit.name + '"' : 'Đã bỏ đánh dấu "' + habit.name + '"')
+              : (habit.name + ': ' + sanitized + '/' + habit.target + ' ' + habit.unit));
+            this.showToast(msg, sanitized >= habit.target ? 'success' : 'default', undoPayload);
+          }
+        },
+
+        toggleCheckHabit(habit) {
+          const current = this.getHabitVal(habit, this.selectedDate);
+          this.setHabitVal(habit, this.selectedDate, current >= habit.target ? 0 : habit.target, true);
+        },
+
+        incrementHabit(habit, delta) {
+          const current = this.getHabitVal(habit, this.selectedDate);
+          this.setHabitVal(habit, this.selectedDate, Math.max(0, current + delta), true);
+        },
+
+        openQuickInput(habit) {
+          this.quickInputHabitId = habit.id;
+          this.quickInputValue = this.getHabitVal(habit, this.selectedDate);
+        },
+
+        saveQuickInput(habit) {
+          const val = Number(this.quickInputValue);
+          if (!isNaN(val) && val >= 0) {
+            this.setHabitVal(habit, this.selectedDate, val, true);
+          }
+          this.quickInputHabitId = null;
+        },
+
+        getDaySummary(dateKey) {
+          if (!dateKey) return { scheduledCount: 0, completedCount: 0, percentage: 0 };
+          const scheduled = this.habits.filter(h => this.isHabitApplicable(h, dateKey));
+          if (scheduled.length === 0) return { scheduledCount: 0, completedCount: 0, percentage: 0 };
+          let completed = 0;
+          let ratioSum = 0;
+          scheduled.forEach(h => {
+            const val = this.getHabitVal(h, dateKey);
+            const r = Math.min(1, Math.max(0, val / h.target));
+            ratioSum += r;
+            if (r >= 1) completed++;
+          });
+          return {
+            scheduledCount: scheduled.length,
+            completedCount: completed,
+            percentage: Math.round((ratioSum / scheduled.length) * 100)
+          };
+        },
+
+        // Mục 1: Sửa triệt để logic gợi ý trong getSmartCoachMessage(dateKey)
+        getSmartCoachMessage(dateKey) {
+          if (this.isRestDay(dateKey)) {
+            return '⛱️ Đang bật Ngày nghỉ — Chuỗi ngày của bạn được bảo vệ an toàn hôm nay.';
+          }
+          const sum = this.getDaySummary(dateKey);
+          if (sum.scheduledCount === 0) return 'Không có thói quen nào đặt lịch cho ngày này.';
+          if (sum.percentage >= 100) return 'Chúc mừng! Bạn đã hoàn thành trọn vẹn 100% mục tiêu hôm nay.';
+
+          const applicable = this.habits.filter(h => this.isHabitApplicable(h, dateKey));
+          const slotOrder = {
+            morning: ['morning', 'day', 'evening'],
+            day: ['day', 'morning', 'evening'],
+            evening: ['evening', 'day', 'morning']
+          };
+          const orderedSlots = (dateKey === this.todayKey) ? (slotOrder[this.currentTimeOfDay] || ['morning', 'day', 'evening']) : ['morning', 'day', 'evening'];
+
+          if (dateKey === this.todayKey && sum.percentage === 0) {
+            const greetings = {
+              morning: 'Chào buổi sáng! Bắt đầu ngày mới với ',
+              day: 'Chào buổi trưa! Khởi động năng lượng với ',
+              evening: 'Chào buổi tối! Bắt đầu thư giãn với '
+            };
+            let firstHabit = null;
+            for (const slot of orderedSlots) {
+              firstHabit = applicable.find(h => h.timeOfDay === slot);
+              if (firstHabit) break;
+            }
+            if (!firstHabit) firstHabit = applicable[0];
+            return (greetings[this.currentTimeOfDay] || 'Bắt đầu hôm nay với ') + firstHabit.name + ' nhé.';
+          }
+
+          let pool = [];
+          for (const slot of orderedSlots) {
+            const inc = applicable.filter(h => h.timeOfDay === slot && !this.isHabitCompleted(h, dateKey));
+            if (inc.length > 0) {
+              pool = inc;
+              break;
+            }
+          }
+          if (pool.length === 0) {
+            pool = applicable.filter(h => !this.isHabitCompleted(h, dateKey));
+          }
+
+          const ranked = pool
+            .map(h => {
+              const val = this.getHabitVal(h, dateKey);
+              const ratio = Math.min(1, Math.max(0, val / h.target));
+              const remaining = Math.max(0, Math.round((h.target - val) * 100) / 100);
+              return { habit: h, ratio, remaining };
+            })
+            .sort((a, b) => b.ratio - a.ratio);
+
+          const closest = ranked[0];
+          if (!closest) return 'Tiếp tục duy trì thói quen đều đặn nhé!';
+          const label = closest.habit.mode === 'counter'
+            ? (closest.remaining + ' ' + closest.habit.unit + ' ' + closest.habit.name)
+            : closest.habit.name;
+
+          if (sum.percentage >= 80) {
+            return 'Đã an toàn giữ chuỗi! Chỉ còn ' + label + ' nữa là chạm mốc 100%.';
+          }
+          return closest.habit.mode === 'counter'
+            ? ('Còn thiếu ' + label + ' nữa — cố lên để chạm mốc 80% giữ chuỗi!')
+            : ('Hoàn thành "' + closest.habit.name + '" nữa — cố lên để chạm mốc 80% giữ chuỗi!');
+        },
+
+        // Mục 2: Chỉ tính ngày đã và đang diễn ra (<= todayKey), bỏ qua Ngày nghỉ, và hôm nay chỉ tính khi > 0%
+        isDayEligibleForStats(day) {
+          if (day.dateKey > this.todayKey) return false;
+          if (this.isRestDay(day.dateKey)) return false;
+          if (day.dateKey === this.todayKey && day.pct === 0) return false;
+          return true;
+        },
+
+        getWeeklyAverage() {
+          const eligible = this.getWeekDays().filter(d => this.isDayEligibleForStats(d));
+          if (eligible.length === 0) return 0;
+          const total = eligible.reduce((acc, d) => acc + d.pct, 0);
+          return Math.round(total / eligible.length);
+        },
+
+        getHabitWeeklyBreakdown() {
+          const eligible = this.getWeekDays().filter(d => this.isDayEligibleForStats(d));
+          return this.habits.filter(h => !h.archived).map(h => {
+            let scheduledDays = 0;
+            let completedDays = 0;
+            eligible.forEach(d => {
+              if (this.isHabitScheduled(h, d.dateKey)) {
+                scheduledDays++;
+                if (this.isHabitCompleted(h, d.dateKey)) completedDays++;
+              }
+            });
+            const rate = scheduledDays > 0 ? Math.round((completedDays / scheduledDays) * 100) : 0;
+            return {
+              id: h.id, name: h.name, icon: h.icon, color: h.color,
+              scheduledDays, completedDays, rate
+            };
+          });
+        },
+
+        getWeeklyInsights() {
+          const eligible = this.getWeekDays().filter(d => this.isDayEligibleForStats(d));
+          const breakdown = this.getHabitWeeklyBreakdown().filter(i => i.scheduledDays > 0);
+          let mostConsistent = 'Chưa có dữ liệu';
+          let mostMissed = 'Chưa có dữ liệu';
+          if (breakdown.length > 0) {
+            const sorted = [...breakdown].sort((a, b) => b.rate - a.rate);
+            mostConsistent = sorted[0].icon + ' ' + sorted[0].name + ' (' + sorted[0].rate + '%)';
+            const last = sorted[sorted.length - 1];
+            mostMissed = last.icon + ' ' + last.name + ' (' + last.rate + '%)';
+          }
+          const fullNames = { T2: 'Thứ Hai', T3: 'Thứ Ba', T4: 'Thứ Tư', T5: 'Thứ Năm', T6: 'Thứ Sáu', T7: 'Thứ Bảy', CN: 'Chủ Nhật' };
+          const activeDays = eligible.filter(d => d.pct > 0);
+          let mostProductiveDay = 'Chưa có dữ liệu';
+          if (activeDays.length > 0) {
+            const maxPct = Math.max(...activeDays.map(d => d.pct));
+            const topDays = activeDays.filter(d => d.pct === maxPct);
+            const labelStr = topDays.length === 1
+              ? (fullNames[topDays[0].label] || topDays[0].label)
+              : topDays.map(d => d.label).join(', ');
+            mostProductiveDay = labelStr + ' (' + maxPct + '%)';
+          }
+          return { mostConsistent, mostMissed, mostProductiveDay };
+        },
+
+        getWeeklyAccumulations() {
+          const days = this.getWeekDays().filter(d => d.dateKey <= this.todayKey);
+          return this.habits
+            .filter(h => !h.archived && h.mode === 'counter')
+            .map(h => {
+              let total = 0;
+              days.forEach(d => {
+                total += this.getHabitVal(h, d.dateKey);
+              });
+              total = Math.round(total * 100) / 100;
+              return {
+                id: h.id,
+                name: h.name,
+                icon: h.icon,
+                unit: h.unit,
+                total,
+                formattedTotal: total.toLocaleString('vi-VN')
+              };
+            })
+            .filter(item => item.total > 0);
+        },
+
+        getRecentMoodsAndNotes() {
+          const keys = Array.from(new Set([...Object.keys(this.notes), ...Object.keys(this.moods)]))
+            .filter(k => (this.notes[k] && this.notes[k].trim().length > 0) || Boolean(this.moods[k]))
+            .sort((a, b) => (a < b ? 1 : -1))
+            .slice(0, 5);
+          const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+          return keys.map(k => {
+            const d = this.parseDateKey(k);
+            return {
+              dateKey: k,
+              label: dayNames[d.getDay()] + ', ' + d.getDate() + '/' + (d.getMonth() + 1),
+              mood: this.moods[k] || null,
+              note: (this.notes[k] || '').trim()
+            };
+          });
+        },
+
+        getHabitStreak(habit) {
+          let streak = 0;
+          const ref = this.parseDateKey(this.todayKey);
+          for (let i = 0; i < 365; i++) {
+            const d = this.addDays(ref, -i);
+            const key = this.formatDateKey(d);
+            if (!this.isHabitScheduled(habit, key)) continue;
+            const done = this.isHabitCompleted(habit, key);
+            if (done) {
+              streak++;
+              continue;
+            }
+            if (this.isRestDay(key)) continue;
+            if (i === 0) continue;
+            break;
+          }
+          return streak;
+        },
+
+        getAppStreak() {
+          if (this.habits.length === 0) return 0;
+          let streak = 0;
+          const ref = this.parseDateKey(this.todayKey);
+          for (let i = 0; i < 365; i++) {
+            const d = this.addDays(ref, -i);
+            const key = this.formatDateKey(d);
+            const sum = this.getDaySummary(key);
+            if (sum.scheduledCount === 0) continue;
+            if (sum.percentage >= 80) {
+              streak++;
+              continue;
+            }
+            if (this.isRestDay(key)) continue;
+            if (i === 0) continue;
+            break;
+          }
+          return streak;
+        },
+
+        getBestAppStreak() {
+          if (this.habits.length === 0) return 0;
+          let best = this.getAppStreak();
+          let running = 0;
+          const allKeys = [...Object.keys(this.logs), ...Object.keys(this.restDays), this.todayKey].sort();
+          const earliestKey = allKeys[0] || this.todayKey;
+          const today = this.parseDateKey(this.todayKey);
+          const earliest = this.parseDateKey(earliestKey);
+          const diffDays = Math.min(365, Math.max(30, Math.round((today.getTime() - earliest.getTime()) / 86400000) + 1));
+
+          for (let i = diffDays; i >= 0; i--) {
+            const d = this.addDays(today, -i);
+            const key = this.formatDateKey(d);
+            const sum = this.getDaySummary(key);
+            if (sum.scheduledCount === 0) continue;
+            if (sum.percentage >= 80) {
+              running++;
+              if (running > best) best = running;
+            } else if (this.isRestDay(key)) {
+              continue;
+            } else if (i === 0) {
+              continue;
+            } else {
+              running = 0;
+            }
+          }
+          return best;
+        },
+
+        getYesterdayRescueInfo() {
+          const today = this.parseDateKey(this.todayKey);
+          const yesterday = this.addDays(today, -1);
+          const yKey = this.formatDateKey(yesterday);
+          if (this.isRestDay(yKey)) return { shouldPrompt: false, yesterdayKey: yKey, yesterdayPct: 0 };
+          const ySum = this.getDaySummary(yKey);
+          if (ySum.scheduledCount === 0 || ySum.percentage >= 80) {
+            return { shouldPrompt: false, yesterdayKey: yKey, yesterdayPct: ySum.percentage };
+          }
+          let priorStreak = 0;
+          for (let i = 2; i < 365; i++) {
+            const d = this.addDays(today, -i);
+            const key = this.formatDateKey(d);
+            const sum = this.getDaySummary(key);
+            if (sum.scheduledCount === 0) continue;
+            if (sum.percentage >= 80) priorStreak++;
+            else if (this.isRestDay(key)) continue;
+            else break;
+          }
+          return {
+            shouldPrompt: priorStreak >= 2,
+            yesterdayKey: yKey,
+            yesterdayPct: ySum.percentage
+          };
+        },
+
+        getHeatmap30Days() {
+          const res = [];
+          const ref = this.parseDateKey(this.todayKey);
+          for (let i = 29; i >= 0; i--) {
+            const d = this.addDays(ref, -i);
+            const key = this.formatDateKey(d);
+            res.push({
+              dateKey: key,
+              dayNum: d.getDate(),
+              isRest: this.isRestDay(key),
+              pct: this.getDaySummary(key).percentage
+            });
+          }
+          return res;
+        },
+
+        applyQuickPreset(preset) {
+          this.form = {
+            name: preset.name,
+            timeOfDay: preset.timeOfDay,
+            mode: preset.mode,
+            target: preset.target,
+            step: preset.step,
+            unit: preset.unit,
+            icon: preset.icon,
+            color: preset.color,
+            daysOfWeek: [1,2,3,4,5,6,7]
+          };
+          this.playSound('pop');
+        },
+
+        openAddModal() {
+          this.editingHabitId = null;
+          this.form = {
+            name: '', timeOfDay: this.currentTimeOfDay, mode: 'counter', target: 10, step: 5, unit: 'phút',
+            icon: '🎯', color: 'indigo', daysOfWeek: [1,2,3,4,5,6,7]
+          };
+          this.sheetOpen = true;
+        },
+
+        openEditModal(habit) {
+          this.editingHabitId = habit.id;
+          this.form = JSON.parse(JSON.stringify(habit));
+          this.sheetOpen = true;
+        },
+
+        toggleFormDay(dayVal) {
+          const idx = this.form.daysOfWeek.indexOf(dayVal);
+          if (idx > -1) {
+            if (this.form.daysOfWeek.length > 1) this.form.daysOfWeek.splice(idx, 1);
+          } else {
+            this.form.daysOfWeek.push(dayVal);
+            this.form.daysOfWeek.sort();
+          }
+        },
+
+        saveHabitForm() {
+          if (!this.form.name.trim()) {
+            this.showToast('Vui lòng nhập tên thói quen.', 'error');
+            return;
+          }
+          const payload = {
+            id: this.editingHabitId || ('h-' + Date.now()),
+            name: this.form.name.trim(),
+            timeOfDay: this.form.timeOfDay,
+            mode: this.form.mode,
+            target: this.form.mode === 'check' ? 1 : Math.max(1, Number(this.form.target) || 1),
+            step: this.form.mode === 'check' ? 1 : Math.max(1, Number(this.form.step) || 1),
+            unit: this.form.mode === 'check' ? 'lần' : (this.form.unit.trim() || 'lần'),
+            icon: this.form.icon,
+            color: this.form.color,
+            daysOfWeek: this.form.daysOfWeek.length ? this.form.daysOfWeek : [1,2,3,4,5,6,7],
+            archived: false
+          };
+          if (this.editingHabitId) {
+            const idx = this.habits.findIndex(h => h.id === this.editingHabitId);
+            if (idx > -1) this.habits[idx] = payload;
+            this.showToast('Đã lưu thay đổi thói quen.', 'success');
+          } else {
+            this.habits.push(payload);
+            this.showToast('Đã thêm thói quen mới.', 'success');
+          }
+          this.persist();
+          this.sheetOpen = false;
+        },
+
+        // Mục 3: Lưu thêm archivedAt: this.todayKey khi Tạm ẩn (Lưu trữ)
+        archiveCurrentHabit() {
+          if (!this.editingHabitId) return;
+          const idx = this.habits.findIndex(h => h.id === this.editingHabitId);
+          if (idx > -1) {
+            this.habits[idx].archived = true;
+            this.habits[idx].archivedAt = this.todayKey;
+          }
+          if (this.activeTimer && this.activeTimer.habitId === this.editingHabitId) this.closeMiniTimer();
+          this.persist();
+          this.sheetOpen = false;
+          this.showToast('Đã tạm ẩn (lưu trữ) từ hôm nay. Thống kê các ngày trước vẫn bảo toàn.');
+        },
+
+        restoreArchivedHabit(id) {
+          const idx = this.habits.findIndex(h => h.id === id);
+          if (idx > -1) {
+            this.habits[idx].archived = false;
+            delete this.habits[idx].archivedAt;
+          }
+          this.persist();
+          this.showToast('Đã khôi phục thói quen trở lại danh sách.', 'success');
+        },
+
+        confirmPermanentDeleteArchived() {
+          if (!this.permanentDeleteArchivedId) return;
+          this.habits = this.habits.filter(h => h.id !== this.permanentDeleteArchivedId);
+          this.permanentDeleteArchivedId = null;
+          this.persist();
+          this.showToast('Đã xóa vĩnh viễn thói quen lưu trữ.');
+        },
+
+        deleteCurrentHabit() {
+          if (!this.editingHabitId) return;
+          this.habits = this.habits.filter(h => h.id !== this.editingHabitId);
+          if (this.activeTimer && this.activeTimer.habitId === this.editingHabitId) this.closeMiniTimer();
+          this.persist();
+          this.confirmDeleteOpen = false;
+          this.sheetOpen = false;
+          this.showToast('Đã xóa thói quen.');
+        },
+
+        resetToDefaults() {
+          this.habits = this.getDefaultHabits();
+          this.persist();
+          this.confirmResetOpen = false;
+          this.showToast('Đã khôi phục 6 thói quen mặc định (giữ nguyên lịch sử cũ).', 'success');
+        },
+
+        clearAllHistory() {
+          this.logs = {};
+          this.notes = {};
+          this.restDays = {};
+          this.moods = {};
+          this.persist();
+          this.clearHistoryStep = 0;
+          this.showToast('Đã xóa toàn bộ lịch sử tiến độ, ngày nghỉ và nhật ký.');
+        },
+
+        exportBackupJson() {
+          const data = {
+            app: 'HabitFlow',
+            version: '3.0.0',
+            exportedAt: new Date().toISOString(),
+            habits: this.habits,
+            logs: this.logs,
+            notes: this.notes,
+            restDays: this.restDays,
+            moods: this.moods
+          };
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'habitflow-backup-' + this.todayKey + '.json';
+          a.click();
+          URL.revokeObjectURL(url);
+          this.showToast('Đã xuất file sao lưu (.json) thành công!', 'success');
+        },
+
+        importBackupJson(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const parsed = JSON.parse(e.target.result);
+              if (Array.isArray(parsed.habits) && typeof parsed.logs === 'object' && parsed.logs !== null) {
+                this.habits = parsed.habits;
+                this.logs = parsed.logs;
+                if (parsed.notes && typeof parsed.notes === 'object') this.notes = parsed.notes;
+                if (parsed.restDays && typeof parsed.restDays === 'object') this.restDays = parsed.restDays;
+                if (parsed.moods && typeof parsed.moods === 'object') this.moods = parsed.moods;
+                this.persist();
+                this.showToast('Khôi phục thành công ' + parsed.habits.length + ' thói quen từ file!', 'success');
+              } else {
+                this.showToast('File sao lưu không đúng cấu trúc HabitFlow.', 'error');
+              }
+            } catch (err) {
+              this.showToast('Lỗi đọc file: File JSON bị hỏng hoặc sai định dạng.', 'error');
+            } finally {
+              event.target.value = '';
+            }
+          };
+          reader.onerror = () => {
+            this.showToast('Không thể đọc tệp sao lưu.', 'error');
+            event.target.value = '';
+          };
+          reader.readAsText(file);
+        }
+      };
+    }
+  </script>
+</body>
+</html>
